@@ -1,18 +1,27 @@
 #include <Arduino.h>
 
-// put function declarations here:
-int myFunction(int, int);
+int freq = 1000;
+//11 pulser på 10 s --> 66 bpm
+int adc1Pin = 32;
+
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  Serial.begin(115200);
+  delay(2000);
+  Serial.println("Hello Everyone");
+
+
+
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+  Serial.print(">");
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  delay(10000/freq);
+  int adc_value;
+  adc_value = analogRead(adc1Pin);
+  
+  Serial.print(" value: ");
+  Serial.println(adc_value);
+
 }
