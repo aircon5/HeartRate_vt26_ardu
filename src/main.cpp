@@ -18,25 +18,22 @@ hw_timer_t *timer = NULL;
 
 void checkPulse(int filtered_value);
 
-void IRAM_ATTR onTimer() {
-  //Serial.println("---timer callback---");
+void IRAM_ATTR sampleCallback() {
   
   int adc_value;
   adc_value = analogRead(adc1Pin);
-  //Serial.println(adc_value);
-  
 
-  //TODO normalisera, skapa en circular buffer med summan och räkna offseten
+  //TODO sofia normalisera, skapa en circular buffer med summan av 300 värden och räkna offseten 
 
-  //TODO filterea, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
+  //TODO tsm filtrera, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
 
-  //TODO calculate bpm med tidsintervall mellan varje peak
+  //TODO annika calculate bpm med tidsintervall mellan varje peak 
 
   int filtered_value = adc_value;
 
   checkPulse(filtered_value);
 
- 
+  
 
   timer_counter++;
 }
@@ -47,12 +44,12 @@ void setup() {
   Serial.println("Hello Everyone");
   
   timer = timerBegin(0,80,true);
-  timerAttachInterrupt(timer,&onTimer,true);
+  timerAttachInterrupt(timer,&sampleCallback,true);
   timerAlarmWrite(timer, freq, true);
   timerAlarmEnable(timer);
 }
 
-
+//metoden ska kolla när det är en puls och räkna tiden mellan det
 void checkPulse(int filtered_value) {
   //printf("peak: %d \n", peak_threshold);
   //printf("min: %d \n", min_threshold);
@@ -71,13 +68,12 @@ void checkPulse(int filtered_value) {
       at_top = true;
       pulse++;
       //TODO ta tiden istället mellan varje pulse och lägg in i array
-      //reset tiden
+      //  reset tiden
     }
   }
   if (filtered_value <= min_threshold) {
     //släck led
     at_top = false;
-    //pulse++;
   }
 
   //printf("antal pulser: %d \n", pulse);
