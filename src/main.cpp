@@ -1,21 +1,24 @@
 #include <Arduino.h>
-#include "driver/gpio.h"
 #include "circularBuffer.h"
 
 int freq = 1000;
-//12 pulser på 10 s --> 72 bpm
+volatile int timer_counter = 0;
+
 int adc1Pin = 32;
 int ledPin = 14; //fixa led
+// int SDApin = 25
+// int SCLpin = 26;
+
 int max_threshold = 800;
 int min_threshold = 500;
 volatile int peak = 0;
 bool at_top = false;
 volatile int pulses = 0;
 bool pulseDetected = false;
-volatile int timer_counter = 0;
 
 volatile int bpm = 10;
 int lastTime = 0;
+
 hw_timer_t *timer = NULL;
 
 struct circularBuffer intervals; 
@@ -28,11 +31,9 @@ void IRAM_ATTR sampleCallback() {
   int adc_value;
   adc_value = analogRead(adc1Pin);
 
-  //TODO sofia normalisera, skapa en circular buffer med summan av 300 värden och räkna offseten 
+  //TODO sofia normalisera (4.8), skapa en circular buffer med 300 värden och räkna offseten 
 
   //TODO tsm filtrera, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
-
-  //TODO annika calculate bpm med tidsintervall mellan varje peak 
 
   int filtered_value = adc_value;
 
@@ -41,11 +42,17 @@ void IRAM_ATTR sampleCallback() {
   timer_counter++;
 }
 
-
+  //I setup sker följande: 
+  //Startar serial monitorn
+  //pinModes
+  //init av buffers
+  //timers/callback 
 void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println("Hello Everyone");
+
+  pinMode(ledPin, OUTPUT);
 
   int* buf_data = (int*) malloc(20 * sizeof(int));
   initCircularBuffer(&intervals,buf_data, 20);
@@ -56,7 +63,8 @@ void setup() {
   timerAlarmEnable(timer);
 }
 
-//metoden ska kolla när det är en puls och räkna tiden mellan det
+  //Metoden kollar om en puls skett och isåfall sätter pulsedetected = true
+  //Uppdatering av threshold sker också här 
 void checkpulseNInterval(int filtered_value) {
   //printf("peak: %d \n", peak_threshold);
   //printf("min: %d \n", min_threshold);
@@ -66,11 +74,9 @@ void checkpulseNInterval(int filtered_value) {
     peak = filtered_value;
   } 
 
-
   //TODO ändra *0._ senare efter normalisering gjorts
   max_threshold = peak * 0.90; 
   min_threshold = peak * 0.85;
-
 
   if (filtered_value >= max_threshold) {
     //tänd led
@@ -78,7 +84,6 @@ void checkpulseNInterval(int filtered_value) {
       at_top = true;
       pulses++;
       pulseDetected = true; 
-      
     }
   }
   if (filtered_value <= min_threshold) {
@@ -101,17 +106,20 @@ void checkpulseNInterval(int filtered_value) {
 
 void loop() {
   delay(10);
+
+    //Denna del räknar ut intervallet mellan varje puls
   if(pulseDetected) {
+
     int timeNow = millis();
     int interval = timeNow - lastTime; 
     lastTime = timeNow; 
  
     addElement(&intervals, interval);
-    //TODO ta tiden istället mellan varje pulse och lägg in i array
-    //  reset tiden
     pulseDetected = false;
-  }
 
+  }
+    //Denna del räknar ut bpm genom att ta average values (metod i circBuff) av varje intervall mellan pulser
+    //Detta sker var 20e sekund då sampling sker var 1 ms (1000 Hz)
   if(timer_counter - 20000 >= 0) {
     delay(10);
     timer_counter = 0;
