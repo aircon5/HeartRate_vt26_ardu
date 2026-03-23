@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "circularBuffer.h"
 
+
 int freq = 1000;
 volatile int timer_counter = 0;
 
@@ -23,6 +24,9 @@ hw_timer_t *timer = NULL;
 
 struct circularBuffer intervals; 
 
+struct circularBuffer normalization;
+int offset = 0;
+ 
 
 void checkpulseNInterval(int filtered_value);
 
@@ -31,7 +35,17 @@ void IRAM_ATTR sampleCallback() {
   int adc_value;
   adc_value = analogRead(adc1Pin);
 
+  addElement(&normalization,adc_value);
+
+  offset = getAverage(&normalization);
+
+  int normalized_value = adc_value - offset;
+
   //TODO sofia normalisera (4.8), skapa en circular buffer med 300 värden och räkna offseten 
+
+ 
+
+
 
   //TODO tsm filtrera, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
 
@@ -54,8 +68,11 @@ void setup() {
 
   pinMode(ledPin, OUTPUT);
 
-  int* buf_data = (int*) malloc(20 * sizeof(int));
-  initCircularBuffer(&intervals,buf_data, 20);
+  int* buf_data1 = (int*) malloc(20 * sizeof(int));
+  initCircularBuffer(&intervals,buf_data1, 20);
+
+  int* buf_data2 = (int*) malloc(300 * sizeof(int));
+  initCircularBuffer(&normalization,buf_data2, 300);
 
   timer = timerBegin(0,80,true);
   timerAttachInterrupt(timer,&sampleCallback,true);
