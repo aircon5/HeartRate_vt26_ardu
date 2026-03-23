@@ -10,6 +10,7 @@ void initCircularBuffer(struct circularBuffer* bufferPtr, int* data, int maxLeng
   bufferPtr->tail = 0;
   bufferPtr->maxLength = maxLength;
   bufferPtr->size = 0;
+  bufferPtr->sum = 0;
   bufferPtr->average = 0;
 }
 
@@ -113,7 +114,6 @@ int getSize(struct circularBuffer* bufferPtr)
 
 int getSum(struct circularBuffer* bufferPtr) 
 {
-    printf("---------summan: %d \n", bufferPtr->sum);
     return bufferPtr->sum;
 
 }
