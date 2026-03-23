@@ -1,3 +1,5 @@
+// Burak
+
 #include <Arduino.h>
 #include "circularBuffer.h"
 #include <Wire.h>
@@ -36,6 +38,8 @@ int offset = 0;
 Adafruit_SSD1306 oled(128, 32, &Wire, -1);
 
 int adc_value;
+int normalized_value;
+int filtered_value;
 
 int Signal;                // holds the incoming raw data. Signal value can range from 0-1024
 
@@ -50,14 +54,13 @@ void checkpulseNInterval(int filtered_value);
 
 void IRAM_ATTR sampleCallback() {
   
-  int adc_value;
   adc_value = analogRead(adc1Pin);
 
   addElement(&normalization,adc_value);
 
   offset = getAverage(&normalization);
 
-  int normalized_value = adc_value - offset;
+  normalized_value = adc_value - offset;
 
   //TODO sofia normalisera (4.8), skapa en circular buffer med 300 värden och räkna offseten 
 
@@ -67,7 +70,7 @@ void IRAM_ATTR sampleCallback() {
 
   //TODO tsm filtrera, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
 
-  int filtered_value = normalized_value;
+  filtered_value = normalized_value;
 
   checkpulseNInterval(filtered_value);
 
@@ -119,9 +122,6 @@ void setup() {
   //Metoden kollar om en puls skett och isåfall sätter pulsedetected = true
   //Uppdatering av threshold sker också här 
 void checkpulseNInterval(int filtered_value) {
-  //printf("peak: %d \n", peak_threshold);
-  //printf("min: %d \n", min_threshold);
-  
 
   if (filtered_value > peak) {
     peak = filtered_value;
@@ -143,23 +143,13 @@ void checkpulseNInterval(int filtered_value) {
     at_top = false;
   }
 
-  //printf("antal pulser: %d \n", pulse);
-/*
-  Serial.print(">");
-  Serial.print(">");
-  Serial.print("value:");
-  Serial.print(filtered_value);
-  Serial.println();
-  */
-
 
 }
 
 
 void loop() {
-
-  int forOLED = adc_value-2000;
-  Serial.println(forOLED);                    // Send the Signal value to Serial Plotter.
+  int scaled_value = filtered_value; 
+  Serial.println(scaled_value);                    // Send the Signal value to Serial Plotter.
 
   if(x>SCREEN_WIDTH - 1){                    // reset the screen when cursor reaches the border of the LED screen
       oled.clearDisplay();
@@ -168,17 +158,23 @@ void loop() {
   }
 
   //These values need to be determined from your signal dynamically
-  int lower_bound = 0;                      //minimum signal values
-  int upper_bound = 1000;                   //Maximum signal values
+  int lower_bound = -200;                      //minimum signal values
+  int upper_bound = 1200;                   //Maximum signal values
 
   float conversion = (upper_bound-lower_bound)/float(SCREEN_HEIGHT);  // a variable is needed fit signal range received by ADC into the screen height
-
-  y = SCREEN_HEIGHT-((forOLED-lower_bound)/conversion)-1;              // strength of the signal in the screen coordinates
+  y = SCREEN_HEIGHT-((scaled_value-lower_bound)/conversion)-1;              // strength of the signal in the screen coordinates
+  if(y<12) y = 12;
+  if(y>31) y = 31;
   oled.writeLine(lastx,lasty,x,y,WHITE);                              // write a line between previous and the current cursor positions
   lasty=y;
   lastx=x;
   x++;
   oled.display();
+
+
+  oled.setCursor(0, 0);        // position to display
+  oled.printf("BPM: %d",  bpm); // text to display
+  oled.display();               // show on OLED
 
   delay(10);
 
@@ -209,6 +205,14 @@ void loop() {
   printf("pulses %d \n", pulses);
   printf("max_t %d \n", max_threshold);
   printf("min_t %d \n", min_threshold);
+
+  Serial.print(">");
+  Serial.print("raw_value:");
+  Serial.print(adc_value);
+  Serial.print(",");
+  Serial.print("norm_value:");
+  Serial.print(normalized_value);
+  Serial.print(",");
   
 
 }
