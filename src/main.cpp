@@ -1,14 +1,16 @@
 #include <Arduino.h>
 #include "circularBuffer.h"
-
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 int freq = 1000;
 volatile int timer_counter = 0;
 
 int adc1Pin = 32;
 int ledPin = 14; //fixa led
-// int SDApin = 25
-// int SCLpin = 26;
+// int SDApin = 21
+// int SCLpin = 22;
 
 int max_threshold = 800;
 int min_threshold = 500;
@@ -27,6 +29,22 @@ struct circularBuffer intervals;
 struct circularBuffer normalization;
 int offset = 0;
  
+
+#define SCREEN_WIDTH 128 // OLED display width,  in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+Adafruit_SSD1306 oled(128, 32, &Wire, -1);
+
+int adc_value;
+
+int Signal;                // holds the incoming raw data. Signal value can range from 0-1024
+
+int x=0;                   // current position of the cursor
+int y=0;
+int lastx=0;                // last position of the cursor
+int lasty=0;
+
+
 
 void checkpulseNInterval(int filtered_value);
 
@@ -49,7 +67,7 @@ void IRAM_ATTR sampleCallback() {
 
   //TODO tsm filtrera, high & low, ta koden från tidigare labbar, använd matlab för att hitta koefficienterna
 
-  int filtered_value = adc_value;
+  int filtered_value = normalized_value;
 
   checkpulseNInterval(filtered_value);
 
@@ -67,6 +85,24 @@ void setup() {
   Serial.println("Hello Everyone");
 
   pinMode(ledPin, OUTPUT);
+
+  // initialize OLED display with address 0x3C for 128x64
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    while (true);
+  }
+
+  delay(2000);         // wait for initializing
+  oled.clearDisplay(); // clear display
+
+  oled.setTextSize(1);          // text size
+  oled.setTextColor(WHITE);     // text color
+  oled.setCursor(0, 0);        // position to display
+  oled.println("Hello World!"); // text to display
+  oled.display();               // show on OLED
+  delay(2000);
+  oled.clearDisplay();        // clear display
+
 
   int* buf_data1 = (int*) malloc(20 * sizeof(int));
   initCircularBuffer(&intervals,buf_data1, 20);
@@ -90,10 +126,9 @@ void checkpulseNInterval(int filtered_value) {
   if (filtered_value > peak) {
     peak = filtered_value;
   } 
-
-  //TODO ändra *0._ senare efter normalisering gjorts
-  max_threshold = peak * 0.90; 
-  min_threshold = peak * 0.85;
+ 
+  max_threshold = peak * 0.75; 
+  min_threshold = peak * 0.50;
 
   if (filtered_value >= max_threshold) {
     //tänd led
@@ -122,6 +157,29 @@ void checkpulseNInterval(int filtered_value) {
 
 
 void loop() {
+
+  int forOLED = adc_value-2000;
+  Serial.println(forOLED);                    // Send the Signal value to Serial Plotter.
+
+  if(x>SCREEN_WIDTH - 1){                    // reset the screen when cursor reaches the border of the LED screen
+      oled.clearDisplay();
+      x=0;
+      lastx=x;
+  }
+
+  //These values need to be determined from your signal dynamically
+  int lower_bound = 0;                      //minimum signal values
+  int upper_bound = 1000;                   //Maximum signal values
+
+  float conversion = (upper_bound-lower_bound)/float(SCREEN_HEIGHT);  // a variable is needed fit signal range received by ADC into the screen height
+
+  y = SCREEN_HEIGHT-((forOLED-lower_bound)/conversion)-1;              // strength of the signal in the screen coordinates
+  oled.writeLine(lastx,lasty,x,y,WHITE);                              // write a line between previous and the current cursor positions
+  lasty=y;
+  lastx=x;
+  x++;
+  oled.display();
+
   delay(10);
 
     //Denna del räknar ut intervallet mellan varje puls
