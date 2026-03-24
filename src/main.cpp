@@ -1,11 +1,12 @@
-// Burak
 
 #include <Arduino.h>
-#include "circularBuffer.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "pro-fdacoefs.h"
+
+#include "circularBuffer.h"
+#include "pro-highpass-fdacoefs.h"
+#include "pro-lowpass-fdacoefs.h"
 
 int freq = 1000;
 volatile int timer_counter = 0;
@@ -35,8 +36,10 @@ struct circularBuffer intervals;
 struct circularBuffer normalization;
 int offset = 0;
 
-static float xbuff[MWSPT_NSEC][3] = {0};
-static float ybuff[MWSPT_NSEC][3] = {0};
+static float xbuff_l[NL_L] = {0};
+static float ybuff_l[NL_L] = {0};
+static float xbuff_h[NL_H] = {0};
+static float ybuff_h[NL_H] = {0};
  
 
 #define SCREEN_WIDTH 128 // OLED display width,  in pixels
@@ -48,8 +51,6 @@ int adc_value;
 int normalized_value;
 int filtered_value;
 
-int Signal;                // holds the incoming raw data. Signal value can range from 0-1024
-
 int x=0;                   // current position of the cursor
 int y=0;
 int lastx=0;                // last position of the cursor
@@ -59,6 +60,8 @@ int lasty=0;
 void checkpulseNInterval(int filtered_value);
 float filter(int normalized_value);
 
+  //Callback function som hämtar adc-value, normalisera, och flaggar att value är available att
+  //Finns öven en timer_counter
 void IRAM_ATTR sampleCallback() {
   
   adc_value = analogRead(adc1Pin);
@@ -91,18 +94,9 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     while (true);
   }
+
   delay(2000);         // wait for initializing
   oled.clearDisplay(); // clear display
-/*
-  oled.setTextSize(1);          // text size
-  oled.setTextColor(WHITE);     // text color
-  oled.setCursor(0, 0);        // position to display
-  oled.println("Hello World!"); // text to display
-  oled.display();               // show on OLED
-  delay(2000);
-  oled.clearDisplay();        // clear display
-*/
-
 
   int* buf_data1 = (int*) malloc(10 * sizeof(int));
   initCircularBuffer(&intervals,buf_data1, 10);
@@ -115,6 +109,8 @@ void setup() {
   timerAlarmWrite(timer, freq, true);
   timerAlarmEnable(timer);
 }
+
+
 
   //Metoden kollar om en puls skett och isåfall sätter pulsedetected = true
   //Uppdatering av threshold sker också här 
@@ -150,34 +146,60 @@ void checkpulseNInterval(int filtered_value) {
 
 }
 
+  //
 float filter(int normalized_value) 
 {
   
-  float input = (float)normalized_value;
+    int invalue = normalized_value;
+    for(int k = NL_L-2; k>=0; k--) {
+        xbuff_l[k+1]=xbuff_l[k];
+    }
+    xbuff_l[0] = (float)invalue;
 
-  for (int k = 0; k < MWSPT_NSEC; k++) {
-    float yn = 0;   
-    float b0 = NUM[k][0];
-    float b1 = NUM[k][1];
-    float b2 = NUM[k][2];
+    float sum1 = 0;
+    for(int k = 0; k < NL_L; k++) {
+        sum1 += NUM_L[k] * xbuff_l[k];
+    }
 
-    float a1 = DEN[k][1];
-    float a2 = DEN[k][2];
+    float sum2 = 0;
+    for(int k = 1; k < NL_L; k++) {
+        sum2 -= DEN_L[k] * ybuff_l[k];
+    }
 
-    yn = b0*input + b1*xbuff[k][0] + b2*xbuff[k][1] - a1*ybuff[k][0]  - a2*ybuff[k][1];
-    
-    // uppdatera minne
-    xbuff[k][2] = xbuff[k][1];
-    xbuff[k][1] = xbuff[k][0];
-    xbuff[k][0] = input;
+    float filter_sum = sum1 - sum2;
 
-    ybuff[k][2] = ybuff[k][1];
-    ybuff[k][1] = ybuff[k][0];
-    ybuff[k][0] = yn;
-  }
-  
-  filtered_value = (int)input;
-  return filtered_value;
+    for(int k = NL_L-2; k>=1; k--) {
+        ybuff_l[k+1] = ybuff_l[k];
+    }
+    ybuff_l[1] = filter_sum;
+
+
+
+    invalue = filter_sum;
+    for(int k = NL_H-2; k>=0; k--) {
+        xbuff_h[k+1]=xbuff_h[k];
+    }
+    xbuff_h[0] = (float)invalue;
+
+     sum1 = 0;
+    for(int k = 0; k < NL_H; k++) {
+        sum1 += NUM_H[k] * xbuff_h[k];
+    }
+
+     sum2 = 0;
+    for(int k = 1; k < NL_H; k++) {
+        sum2 -= DEN_H[k] * ybuff_h[k];
+    }
+
+     filter_sum = sum1 - sum2;
+
+    for(int k = NL_H-2; k>=1; k--) {
+        ybuff_h[k+1] = ybuff_h[k];
+    }
+    ybuff_h[1] = filter_sum;
+
+    float outvalue = filter_sum;
+  return outvalue;
 }
 
 
@@ -233,22 +255,26 @@ void loop() {
   }
   
     //Denna del räknar ut bpm genom att ta average values (metod i circBuff) av varje intervall mellan pulser
-    //Detta sker var 20e sekund då sampling sker var 1 ms (1000 Hz)
+    //Detta sker var 10e sekund då sampling sker var 1 ms (1000 Hz)
   if(timer_counter - 10000 >= 0) {
     delay(10);
     timer_counter = 0;
-    bpm = (int) 60000 / (float)getAverage(&intervals) ;
+    float average = (float)getAverage(&intervals);
+    if(average > 0) {
+      bpm = (int) 60000 / average;
+    } else {
+      bpm = 0;
+    }
 
   }
 
   if(valueAvailable) {
-    filtered_value = filter(normalized_value);
+    filtered_value = (int) filter(normalized_value);
 
     checkpulseNInterval(filtered_value);
     valueAvailable = false;
   }
 
-  delay(10); 
   
   //printf("Timer_counter %d \n", timer_counter);
   printf("BPM %d \n", bpm);
