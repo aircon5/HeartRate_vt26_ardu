@@ -83,7 +83,6 @@ void IRAM_ATTR sampleCallback() {
 void setup() {
   Serial.begin(115200);
   delay(2000);
-  Serial.println("Hello Everyone");
 
   pinMode(ledPin, OUTPUT);
 
@@ -94,7 +93,7 @@ void setup() {
   }
   delay(2000);         // wait for initializing
   oled.clearDisplay(); // clear display
-
+/*
   oled.setTextSize(1);          // text size
   oled.setTextColor(WHITE);     // text color
   oled.setCursor(0, 0);        // position to display
@@ -102,7 +101,7 @@ void setup() {
   oled.display();               // show on OLED
   delay(2000);
   oled.clearDisplay();        // clear display
-
+*/
 
 
   int* buf_data1 = (int*) malloc(10 * sizeof(int));
@@ -208,7 +207,8 @@ void loop() {
   x++;
   oled.display();
 
-
+  oled.setTextSize(1);          // text size
+  oled.setTextColor(WHITE);     // text color
   oled.setCursor(0, 0);        // position to display
   oled.printf("BPM: %d",  bpm); // text to display
   oled.display();               // show on OLED

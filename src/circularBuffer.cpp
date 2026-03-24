@@ -120,7 +120,12 @@ int getSum(struct circularBuffer* bufferPtr)
 
 int getAverage(struct circularBuffer* bufferPtr) 
 {
-  return bufferPtr->sum/bufferPtr->size;
+  int average = bufferPtr->sum/bufferPtr->size;
+  if(average == 0) 
+  {
+    return -1;
+  }
+  return average;
 }
 
 
