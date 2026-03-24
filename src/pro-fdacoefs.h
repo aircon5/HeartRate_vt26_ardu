@@ -9,7 +9,7 @@
  * -------------------------------
  * Filter Structure    : Direct-Form II, Second-Order Sections
  * Number of Sections  : 3
- * Stable              : Yes
+ * Stable              : Yesfloat
  * Linear Phase        : No
  */
 
@@ -21,8 +21,8 @@
  * /Applications/MATLAB_R2025b.app/extern/include/tmwtypes.h 
  */
 #define MWSPT_NSEC 7
-const int NL[MWSPT_NSEC] = { 1,3,1,3,1,3,1 };
-const float NUM[MWSPT_NSEC][3] = {
+static float NL[MWSPT_NSEC] = { 1,3,1,3,1,3,1 };
+static float NUM[MWSPT_NSEC][3] = {
   {
     0.01310812086282,                 0,                 0 
   },
@@ -45,8 +45,8 @@ const float NUM[MWSPT_NSEC][3] = {
                    1,                 0,                 0 
   }
 };
-const int DL[MWSPT_NSEC] = { 1,3,1,3,1,3,1 };
-const float DEN[MWSPT_NSEC][3] = {
+static float DL[MWSPT_NSEC] = { 1,3,1,3,1,3,1 };
+static float DEN[MWSPT_NSEC][3] = {
   {
                    1,                 0,                 0 
   },
