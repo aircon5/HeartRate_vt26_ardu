@@ -64,7 +64,7 @@ int getSize(struct circularBuffer* bufferPtr);
 
 int getSum(struct circularBuffer* bufferPtr);
 
-int getAverage(struct circularBuffer* bufferPtr);
+float getAverage(struct circularBuffer* bufferPtr);
 
 #endif
 
