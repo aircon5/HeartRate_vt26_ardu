@@ -16,9 +16,9 @@ int ledPin = 14; //fixa led
 // int SDApin = 21
 // int SCLpin = 22;
 
-float max_threshold = 800;
-float min_threshold = 500;
-volatile float peak = 0;
+int max_threshold = 800;
+int min_threshold = 500;
+volatile int peak = 0;
 bool at_top = false;
 volatile int pulses = 0;
 int counter;
@@ -42,8 +42,8 @@ int offset = 0;
 Adafruit_SSD1306 oled(128, 32, &Wire, -1);
 
 int adc_value;
-float normalized_value;
-float filtered_value;
+int normalized_value;
+int filtered_value;
 
 int x=0;                   // current position of the cursor
 int y=0;
@@ -54,21 +54,14 @@ int lasty=0;
 #define N 3
 #define ORDER 3
 
-void checkpulseNInterval(float filtered_value);
-float filter(float normalized_value);
+void checkpulseNInterval(int filtered_value);
+float filter(int normalized_value);
 
   //Callback function som hämtar adc-value, normalisera, och flaggar att value är available att
   //Finns öven en timer_counter
 void IRAM_ATTR sampleCallback() {
   
   adc_value = analogRead(adc1Pin);
-
-  addElement(&normalization,adc_value);
-
-  offset = getAverage(&normalization);
-
-  normalized_value = adc_value - offset;
-  
   valueAvailable = true;
 
   timer_counter++;
@@ -111,7 +104,7 @@ void setup() {
 
   //Metoden kollar om en puls skett och isåfall sätter pulsedetected = true
   //Uppdatering av threshold sker också här 
-void checkpulseNInterval(float filtered_value) {
+void checkpulseNInterval(int filtered_value) {
 
   if (filtered_value > peak) {
     peak = filtered_value;
@@ -128,7 +121,7 @@ void checkpulseNInterval(float filtered_value) {
   }
 
 
-  if (filtered_value >= max_threshold) {
+  if (filtered_value >= (int)max_threshold) {
     //tänd led
     if(at_top == false) {
       at_top = true;
@@ -136,7 +129,7 @@ void checkpulseNInterval(float filtered_value) {
       pulseDetected = true; 
     }
   }
-  if (filtered_value <= min_threshold) {
+  if (filtered_value <= (int)min_threshold) {
     //släck led
     at_top = false;
   }
@@ -144,7 +137,7 @@ void checkpulseNInterval(float filtered_value) {
 }
 
   
-float filter(float norm_value) 
+float filter(int norm_value) 
 {
   //Low pass filter
   static float xbuff_low[M+1] = {0};
@@ -156,7 +149,7 @@ float filter(float norm_value)
       1,    2.93717072845,    -2.876299723479,  0.9390989403253
   };
 
-  float invalue_low = norm_value;
+  int invalue_low = norm_value;
   for(int k = M-1; k>=0; k--) {
     xbuff_low[k+1]=xbuff_low[k];
   }
@@ -188,8 +181,8 @@ float filter(float norm_value)
     static float a_high[N+1] = {
         1,   -2.989946914092,    2.979944296952,  -0.9899972564945
     };
-    //float invalue_high = norm_value;
-    float invalue_high = filter_sum_low;
+    int invalue_high = norm_value;
+    //int invalue_high = filter_sum_low;
     for(int k = M-1; k>=0; k--) {
         xbuff_high[k+1]=xbuff_high[k];
     }
@@ -248,7 +241,6 @@ void loop() {
   oled.printf("BPM: %d",  bpm); // text to display
   oled.display();               // show on OLED
 
-  delay(10);
 
     //Denna del räknar ut intervallet mellan varje puls
   if(pulseDetected) {
@@ -282,12 +274,14 @@ void loop() {
   }
 
   if(valueAvailable) {
-    filtered_value = filter(normalized_value);
+    addElement(&normalization,adc_value);
+
+    offset = getAverage(&normalization);
+
+    normalized_value = adc_value - offset;
+    filtered_value = (int) filter(normalized_value);
     //filtered_value = normalized_value;
-    int timeNow = millis();
-    if (timeNow - lastTime > 20000) {
     checkpulseNInterval(filtered_value);
-    }
     valueAvailable = false;
   }
 

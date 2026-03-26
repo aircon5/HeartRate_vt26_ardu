@@ -54,6 +54,7 @@ int addElement(struct circularBuffer* bufferPtr, int value)
   if(bufferPtr->size == bufferPtr->maxLength)  // om det är fullt 
   {
     removeHead(bufferPtr);
+    bufferPtr->head = (headIndex + 1) % bufferPtr->maxLength;
   } 
   
   bufferPtr->data[tailIndex] = value;
@@ -117,12 +118,9 @@ int getSum(struct circularBuffer* bufferPtr)
 
 }
 
-float getAverage(struct circularBuffer* bufferPtr) 
+float getAverage(struct circularBuffer* bufferPtr)
 {
-  if (bufferPtr->size == 0) {
-    return 0;  // skydd
-  }
-  return (float) bufferPtr->sum/bufferPtr->size;
+  return bufferPtr->sum/bufferPtr->size;
 }
 
 
