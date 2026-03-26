@@ -36,6 +36,12 @@ struct circularBuffer intervals;
 struct circularBuffer normalization;
 int offset = 0;
 
+static float xbuff_l[NL_L] = {0};
+static float ybuff_l[NL_L] = {0};
+static float xbuff_h[NL_H] = {0};
+static float ybuff_h[NL_H] = {0};
+ 
+
 #define SCREEN_WIDTH 128 // OLED display width,  in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
@@ -50,9 +56,6 @@ int y=0;
 int lastx=0;                // last position of the cursor
 int lasty=0;
 
-#define M 3
-#define N 3
-#define ORDER 3
 
 void checkpulseNInterval(float filtered_value);
 float filter(float normalized_value);
@@ -121,10 +124,10 @@ void checkpulseNInterval(float filtered_value) {
   max_threshold = peak * 0.75; 
   min_threshold = peak * 0.50; 
 
-  if(max_threshold <= 300 && min_threshold <= 200) 
+  if(max_threshold <= 300 && min_threshold <= 300) 
   {
     max_threshold = 300;
-    min_threshold = 200;
+    min_threshold = 300;
   }
 
 
@@ -144,7 +147,7 @@ void checkpulseNInterval(float filtered_value) {
 }
 
   
-float filter(float norm_value) 
+float filter(int norm_value) 
 {
   //Low pass filter
   static float xbuff_low[M+1] = {0};
@@ -156,7 +159,7 @@ float filter(float norm_value)
       1,    2.93717072845,    -2.876299723479,  0.9390989403253
   };
 
-  float invalue_low = norm_value;
+  int invalue_low = norm_value;
   for(int k = M-1; k>=0; k--) {
     xbuff_low[k+1]=xbuff_low[k];
   }
@@ -188,33 +191,34 @@ float filter(float norm_value)
     static float a_high[N+1] = {
         1,   -2.989946914092,    2.979944296952,  -0.9899972564945
     };
-    //float invalue_high = norm_value;
-    float invalue_high = filter_sum_low;
+    int invalue_high = norm_value;
+    //int invalue_high = filter_sum_low;
     for(int k = M-1; k>=0; k--) {
         xbuff_high[k+1]=xbuff_high[k];
     }
-    xbuff_high[0] = (float)invalue_high;
+    xbuff_h[0] = (float)invalue;
 
-    float sum1_high = 0;
-    for(int k = 0; k <= M; k++) {
-        sum1_high += b_high[k] * xbuff_high[k];
+     sum1 = 0;
+    for(int k = 0; k < NL_H; k++) {
+        sum1 += NUM_H[k] * xbuff_h[k];
     }
 
-    float sum2_high = 0;
-    for(int k = 1; k <= N; k++) {
-        sum2_high += a_high[k] * ybuff_high[k];
+     sum2 = 0;
+    for(int k = 1; k < NL_H; k++) {
+        sum2 -= DEN_H[k] * ybuff_h[k];
     }
 
-    float filter_sum_high = sum1_high - sum2_high;
+     filter_sum = sum1 - sum2;
 
-    for(int k = N-1; k>=1; k--) {
-        ybuff_high[k+1] = ybuff_high[k];
+    for(int k = NL_H-2; k>=1; k--) {
+        ybuff_h[k+1] = ybuff_h[k];
     }
-    ybuff_high[1] = filter_sum_high;
+    ybuff_h[1] = filter_sum;
 
-    float outvalue = filter_sum_high;
+    float outvalue = filter_sum;
   return outvalue;
 }
+
 
 void loop() {
   int scaled_value = filtered_value; 
@@ -282,12 +286,11 @@ void loop() {
   }
 
   if(valueAvailable) {
-    filtered_value = filter(normalized_value);
+    filtered_value = (int) filter(normalized_value);
     //filtered_value = normalized_value;
     int timeNow = millis();
     if (timeNow - lastTime > 20000) {
     checkpulseNInterval(filtered_value);
-    }
     valueAvailable = false;
   }
 
